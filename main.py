@@ -67,7 +67,7 @@ valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE,
 lit_vit = LitViT(model)
 
 # log gradients, parameter histogram and model topology
-wandb_logger.watch(lit_vit, log="all", log_model="all")
+wandb_logger.watch(lit_vit, log="all")
 
 # Explicitly specify the process group backend if you choose to
 ddp = DDPStrategy(process_group_backend="gloo")
