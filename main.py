@@ -3,15 +3,20 @@ import torch
 import polars as pl
 from sklearn.model_selection import train_test_split
 import numpy as np
+
 # for parallelization
 import lightning.pytorch as li
 from lightning.pytorch.strategies import DDPStrategy
+
 # local imports
 from vit3D import ViT
 from dataset import RNSA2023Dataset
 from dataloader import collate_fn_pad
 from litvit import LitViT
+
+# logs
 import tensorboard
+from lightning.pytorch.loggers import WandbLogger
 
 BASE_PATH = Path("/home/infres/jma-21/J2Letters_RNSA_2023/rsna-2023-abdominal-trauma-detection")
 PT_PATH = Path("/home/infres/jma-21/J2Letters_RNSA_2023/rnsa-2023-5mm-slices-pt")
@@ -21,6 +26,8 @@ LABEL_COLS = ["bowel_healthy", "bowel_injury", "extravasation_healthy", "extrava
 FRAME_PATCH_SIZE = 8
 BATCH_SIZE = 2
 FRAMES = 512 # 303 is the max in the train data 
+
+wandb_logger = WandbLogger(project="RNSA_2023_ViT3D")
 
 # Instantiate model
 model = ViT(
@@ -59,6 +66,9 @@ valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE,
 # Init the LitVit
 lit_vit = LitViT(model)
 
+# log gradients, parameter histogram and model topology
+wandb_logger.watch(lit_vit, log="all", log_model="all")
+
 # Explicitly specify the process group backend if you choose to
 ddp = DDPStrategy(process_group_backend="gloo")
 
@@ -66,12 +76,12 @@ ddp = DDPStrategy(process_group_backend="gloo")
 trainer = li.Trainer(devices="auto", 
                      accelerator="gpu", 
                      strategy=ddp,
-                     max_epochs=1, 
-                     limit_train_batches=0.25,
-                     log_every_n_steps=1)
+                     max_epochs=100, #limit_train_batches=0.25,
+                     log_every_n_steps=50,
+                     logger=wandb_logger)
 
 # train the model (hint: here are some helpful Trainer arguments for rapid idea iteration)
 trainer.fit(model=lit_vit, train_dataloaders=train_loader)
 
 # Done
-print("DONE")
+print("-------- TRAINING DONE --------")

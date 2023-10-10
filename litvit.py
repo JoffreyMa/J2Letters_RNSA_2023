@@ -18,7 +18,7 @@ class LitViT(li.LightningModule):
         inputs, labels = batch
         outputs = self.vit(inputs)
         loss = cross_entropy(outputs, labels)
-        self.log("train_loss", loss)
+        self.log("train/loss", loss)
         return loss
     
     def configure_optimizers(self):
