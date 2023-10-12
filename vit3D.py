@@ -156,4 +156,4 @@ class ViT(nn.Module):
         print(f"X shape after latent : {x.shape}")
         # Dispatch to the heads
         x = self.layer_norm(x)
-        return torch.cat(self.head_bowel(x), self.head_extra(x), self.head_kidney(x), self.head_liver(x), self.head_spleen(x), dim=-1)
+        return torch.cat((self.head_bowel(x), self.head_extra(x), self.head_kidney(x), self.head_liver(x), self.head_spleen(x)), dim=-1)
