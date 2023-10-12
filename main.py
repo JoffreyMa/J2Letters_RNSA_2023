@@ -35,7 +35,6 @@ model = ViT(
     frames = FRAMES,               # number of frames
     image_patch_size = 16,     # image patch size
     frame_patch_size = FRAME_PATCH_SIZE,      # frame patch size
-    num_classes = len(LABEL_COLS[:-1]),
     dim = 512,
     depth = 6,
     heads = 4,
