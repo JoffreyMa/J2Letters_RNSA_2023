@@ -70,8 +70,8 @@ valid_samples_weight = valid_dataset.labels["weight"].to_list()
 valid_sampler = WeightedRandomSampler(valid_samples_weight, len(valid_samples_weight))
 
 # Create data loaders for our datasets; shuffle for training, not for validation
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn = collate_fn_pad, sampler=train_sampler)
-valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn = collate_fn_pad, sampler=valid_sampler)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, collate_fn = collate_fn_pad, sampler=train_sampler)
+valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, collate_fn = collate_fn_pad, sampler=valid_sampler)
 
 # Init the LitVit
 lit_vit = LitViT(model)
