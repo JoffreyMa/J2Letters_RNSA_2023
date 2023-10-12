@@ -75,7 +75,7 @@ class Transformer(nn.Module):
         return x
 
 class ViT(nn.Module):
-    def __init__(self, *, image_size, image_patch_size, frames, frame_patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
+    def __init__(self, *, image_size, image_patch_size, frames, frame_patch_size, dim, depth, heads, mlp_dim, neck_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
         super().__init__()
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(image_patch_size)
@@ -104,9 +104,39 @@ class ViT(nn.Module):
         self.pool = pool
         self.to_latent = nn.Identity()
 
-        self.mlp_head = nn.Sequential(
-            nn.LayerNorm(dim),
-            nn.Linear(dim, num_classes)
+
+        # heads (more like (neck+head)s) for each type of prediction 
+        # bowel, extra, kidney, liver, spleen
+        self.layer_norm = nn.LayerNorm(dim),
+        self.head_bowel = nn.Sequential(
+            nn.Linear(dim, neck_dim),
+            nn.GELU(),
+            nn.Linear(neck_dim, 1),
+            nn.Sigmoid()
+        )
+        self.head_extra = nn.Sequential(
+            nn.Linear(dim, neck_dim),
+            nn.GELU(),
+            nn.Linear(neck_dim, 1),
+            nn.Sigmoid()
+        )
+        self.head_kidney = nn.Sequential(
+            nn.Linear(dim, neck_dim),
+            nn.GELU(),
+            nn.Linear(neck_dim, 3),
+            nn.Softmax(dim = -1)
+        )
+        self.head_liver = nn.Sequential(
+            nn.Linear(dim, neck_dim),
+            nn.GELU(),
+            nn.Linear(neck_dim, 3),
+            nn.Softmax(dim = -1)
+        )
+        self.head_spleen = nn.Sequential(
+            nn.Linear(dim, neck_dim),
+            nn.GELU(),
+            nn.Linear(neck_dim, 3),
+            nn.Softmax(dim = -1)
         )
 
     def forward(self, video):
@@ -119,8 +149,11 @@ class ViT(nn.Module):
         x = self.dropout(x)
 
         x = self.transformer(x)
-
+        print("X shape after transformer : {x.shape}")
         x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
-
+        print("X shape after mean : {x.shape}")
         x = self.to_latent(x)
-        return self.mlp_head(x)
+        print("X shape after latent : {x.shape}")
+        # Dispatch to the heads
+        x = self.layer_norm(x)
+        return torch.cat(self.head_bowel(x), self.head_extra(x), self.head_kidney(x), self.head_liver(x), self.head_spleen(x), dim=-1)

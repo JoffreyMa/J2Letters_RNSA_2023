@@ -40,6 +40,7 @@ model = ViT(
     depth = 6,
     heads = 4,
     mlp_dim = 1024,
+    neck_dim = 32,
     channels = 1,
     dropout = 0.1,
     emb_dropout = 0.1
@@ -81,7 +82,7 @@ trainer = li.Trainer(devices="auto",
                      logger=wandb_logger)
 
 # train the model (hint: here are some helpful Trainer arguments for rapid idea iteration)
-trainer.fit(model=lit_vit, train_dataloaders=train_loader)
+trainer.fit(model=lit_vit, train_dataloaders=train_loader, val_dataloaders=valid_loader)
 
 # Done
 print("-------- TRAINING DONE --------")
