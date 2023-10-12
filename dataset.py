@@ -10,8 +10,8 @@ LABEL_COLS = ["bowel_healthy", "bowel_injury", "extravasation_healthy", "extrava
 LABEL_MODEL_COLS = ["bowel_healthy", "extravasation_healthy", "kidney_healthy", "kidney_low", "kidney_high", "liver_healthy", "liver_low", "liver_high", "spleen_healthy", "spleen_low", "spleen_high"]
 
 class RNSA2023Dataset(Dataset):
-    def __init__(self, idx):
-        self.labels = pl.read_csv(BASE_PATH.joinpath("train.csv"))[idx]
+    def __init__(self, labels_data, idx):
+        self.labels = labels_data[idx]
         self.patients_series = pl.read_csv(BASE_PATH.joinpath("train_series_meta.csv")).join(self.labels.select("patient_id"), on="patient_id", how="inner")
         
     def __len__(self):

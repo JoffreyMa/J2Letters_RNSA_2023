@@ -149,11 +149,11 @@ class ViT(nn.Module):
         x = self.dropout(x)
 
         x = self.transformer(x)
-        print(f"X shape after transformer : {x.shape}")
+
         x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
-        print(f"X shape after mean : {x.shape}")
+
         x = self.to_latent(x)
-        print(f"X shape after latent : {x.shape}")
+
         # Dispatch to the heads
         x = self.layer_norm(x)
         return torch.cat((self.head_bowel(x), self.head_extra(x), self.head_kidney(x), self.head_liver(x), self.head_spleen(x)), dim=-1)

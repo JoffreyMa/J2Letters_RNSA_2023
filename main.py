@@ -1,5 +1,6 @@
 from pathlib import Path
 import torch
+from torch.utils.data import WeightedRandomSampler
 import polars as pl
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -51,17 +52,26 @@ train_patient_series = pl.read_csv(BASE_PATH.joinpath("train_series_meta.csv"))
 
 counts_unique_labels = train_labels[LABEL_COLS].group_by(LABEL_COLS).count().with_row_count(offset=1)
 counts_unique_labels = counts_unique_labels.with_columns(pl.when(pl.col("count") == 1).then(0).otherwise(pl.col("row_nr")).alias("group"))
-train_labels_group = train_labels.join(counts_unique_labels.select(LABEL_COLS + ["group"]), on=LABEL_COLS, how="left")
+# Add weights to each group. Later used in WeightedRandomSampler
+# 2292 corresponds to the largest group by far, with healthy people inside
+counts_unique_labels = counts_unique_labels.with_columns(pl.when(pl.col("count") == 2292).then((len(counts_unique_labels)-1)/pl.col("count")).otherwise(1/pl.col("count")).alias("weight"))
+train_labels_group = train_labels.join(counts_unique_labels.select(LABEL_COLS + ["group", "weight"]), on=LABEL_COLS, how="left")
 
 train_idx, valid_idx= train_test_split(np.arange(len(train_labels)), test_size=0.1, shuffle=True, stratify=train_labels_group["group"])
 
 # Create datasets
-train_dataset = RNSA2023Dataset(train_idx)
-valid_dataset = RNSA2023Dataset(valid_idx)
+train_dataset = RNSA2023Dataset(train_labels_group, train_idx)
+valid_dataset = RNSA2023Dataset(train_labels_group, valid_idx)
+
+# Samplers
+train_samples_weight = train_dataset.labels.select(pl.col("weight")).to_list()
+train_sampler = WeightedRandomSampler(train_samples_weight, len(train_samples_weight))
+valid_samples_weight = valid_dataset.labels.select(pl.col("weight")).to_list()
+valid_sampler = WeightedRandomSampler(valid_samples_weight, len(valid_samples_weight))
 
 # Create data loaders for our datasets; shuffle for training, not for validation
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn = collate_fn_pad)
-valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn = collate_fn_pad)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn = collate_fn_pad, sampler=train_sampler)
+valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn = collate_fn_pad, sampler=valid_sampler)
 
 # Init the LitVit
 lit_vit = LitViT(model)
