@@ -64,9 +64,9 @@ train_dataset = RNSA2023Dataset(train_labels_group, train_idx)
 valid_dataset = RNSA2023Dataset(train_labels_group, valid_idx)
 
 # Samplers
-train_samples_weight = train_dataset.labels.select(pl.col("weight")).to_list()
+train_samples_weight = train_dataset.labels["weight"].to_list()
 train_sampler = WeightedRandomSampler(train_samples_weight, len(train_samples_weight))
-valid_samples_weight = valid_dataset.labels.select(pl.col("weight")).to_list()
+valid_samples_weight = valid_dataset.labels["weight"].to_list()
 valid_sampler = WeightedRandomSampler(valid_samples_weight, len(valid_samples_weight))
 
 # Create data loaders for our datasets; shuffle for training, not for validation
