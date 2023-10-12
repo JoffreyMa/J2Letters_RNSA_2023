@@ -54,7 +54,8 @@ counts_unique_labels = train_labels[LABEL_COLS].group_by(LABEL_COLS).count().wit
 counts_unique_labels = counts_unique_labels.with_columns(pl.when(pl.col("count") == 1).then(0).otherwise(pl.col("row_nr")).alias("group"))
 # Add weights to each group. Later used in WeightedRandomSampler
 # 2292 corresponds to the largest group by far, with healthy people inside
-counts_unique_labels = counts_unique_labels.with_columns(pl.when(pl.col("count") == 2292).then((len(counts_unique_labels)-1)/pl.col("count")).otherwise(1/pl.col("count")).alias("weight"))
+# Weights are made so that the sampler draws unhealthy people most of the time
+counts_unique_labels = counts_unique_labels.with_columns(pl.when(pl.col("count") == 2292).then((len(counts_unique_labels)-1)/(2*pl.col("count"))).otherwise(1/pl.col("count")).alias("weight"))
 train_labels_group = train_labels.join(counts_unique_labels.select(LABEL_COLS + ["group", "weight"]), on=LABEL_COLS, how="left")
 
 train_idx, valid_idx= train_test_split(np.arange(len(train_labels)), test_size=0.1, shuffle=True, stratify=train_labels_group["group"])
@@ -71,7 +72,7 @@ valid_sampler = WeightedRandomSampler(valid_samples_weight, len(valid_samples_we
 
 # Create data loaders for our datasets; shuffle for training, not for validation
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, collate_fn = collate_fn_pad, sampler=train_sampler)
-valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, collate_fn = collate_fn_pad, sampler=valid_sampler)
+valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, collate_fn = collate_fn_pad, sampler=valid_sampler, num_workers=12)
 
 # Init the LitVit
 lit_vit = LitViT(model)
@@ -91,7 +92,9 @@ trainer = li.Trainer(devices="auto",
                      logger=wandb_logger)
 
 # train the model (hint: here are some helpful Trainer arguments for rapid idea iteration)
-trainer.fit(model=lit_vit, train_dataloaders=train_loader, val_dataloaders=valid_loader)
+# Check first there is something to learn on the valid data
+trainer.fit(model=lit_vit, train_dataloaders=valid_loader)
+#trainer.fit(model=lit_vit, train_dataloaders=train_loader, val_dataloaders=valid_loader)
 
 # Done
 print("-------- TRAINING DONE --------")
