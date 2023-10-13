@@ -18,6 +18,7 @@ from litvit import LitViT
 # logs
 import tensorboard
 from lightning.pytorch.loggers import WandbLogger
+from lightning.pytorch.callbacks import LearningRateMonitor
 
 BASE_PATH = Path("/home/infres/jma-21/J2Letters_RNSA_2023/rsna-2023-abdominal-trauma-detection")
 PT_PATH = Path("/home/infres/jma-21/J2Letters_RNSA_2023/rnsa-2023-5mm-slices-pt")
@@ -30,22 +31,6 @@ FRAMES = 512 # 303 is the max in the train data
 
 wandb_logger = WandbLogger(project="RNSA_2023_ViT3D")
 
-# Instantiate model
-model = ViT(
-    image_size = 128,          # image size
-    frames = FRAMES,               # number of frames
-    image_patch_size = 16,     # image patch size
-    frame_patch_size = FRAME_PATCH_SIZE,      # frame patch size
-    dim = 512,
-    depth = 6,
-    heads = 4,
-    mlp_dim = 1024,
-    neck_dim = 32,
-    channels = 1,
-    dropout = 0.1,
-    emb_dropout = 0.1
-)
-
 # Data prep
 train_labels = pl.read_csv(BASE_PATH.joinpath("train.csv"))
 train_patient_series = pl.read_csv(BASE_PATH.joinpath("train_series_meta.csv"))
@@ -55,7 +40,7 @@ counts_unique_labels = counts_unique_labels.with_columns(pl.when(pl.col("count")
 # Add weights to each group. Later used in WeightedRandomSampler
 # 2292 corresponds to the largest group by far, with healthy people inside
 # Weights are made so that the sampler draws unhealthy people most of the time
-counts_unique_labels = counts_unique_labels.with_columns(pl.when(pl.col("count") == 2292).then((len(counts_unique_labels)-1)/(2*pl.col("count"))).otherwise(1/pl.col("count")).alias("weight"))
+counts_unique_labels = counts_unique_labels.with_columns(pl.when(pl.col("count") == 2292).then((len(counts_unique_labels)-1)/(4*pl.col("count"))).otherwise(1/pl.col("count")).alias("weight"))
 train_labels_group = train_labels.join(counts_unique_labels.select(LABEL_COLS + ["group", "weight"]), on=LABEL_COLS, how="left")
 
 train_idx, valid_idx= train_test_split(np.arange(len(train_labels)), test_size=0.1, shuffle=True, stratify=train_labels_group["group"])
@@ -74,11 +59,26 @@ valid_sampler = WeightedRandomSampler(valid_samples_weight, len(valid_samples_we
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, collate_fn = collate_fn_pad, sampler=train_sampler)
 valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, collate_fn = collate_fn_pad, sampler=valid_sampler)
 
-# Init the LitVit
-lit_vit = LitViT(model)
+# Init the LitVit model
+lit_vit = LitViT(
+    image_size = 128,          # image size
+    frames = FRAMES,               # number of frames
+    image_patch_size = 16,     # image patch size
+    frame_patch_size = FRAME_PATCH_SIZE,      # frame patch size
+    dim = 512,
+    depth = 6,
+    heads = 4,
+    mlp_dim = 1024,
+    neck_dim = 32,
+    channels = 1,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
 
 # log gradients, parameter histogram and model topology
 wandb_logger.watch(lit_vit, log="all")
+# Monitor and log learning rate
+lr_monitor = LearningRateMonitor(logging_interval='step')
 
 # Explicitly specify the process group backend if you choose to
 ddp = DDPStrategy(process_group_backend="gloo")
@@ -87,9 +87,11 @@ ddp = DDPStrategy(process_group_backend="gloo")
 trainer = li.Trainer(devices="auto", 
                      accelerator="gpu", 
                      strategy=ddp,
-                     max_epochs=100, #limit_train_batches=0.25,
+                     gradient_clip_val=1,
+                     max_epochs=1000,
                      log_every_n_steps=50,
-                     logger=wandb_logger)
+                     logger=wandb_logger, 
+                     callbacks=[lr_monitor])
 
 # train the model (hint: here are some helpful Trainer arguments for rapid idea iteration)
 # Check first there is something to learn on the valid data
