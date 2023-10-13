@@ -39,10 +39,10 @@ class LitViT(li.LightningModule):
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop.
         # it is independent of forward
-        return self._shared_eval("train")
+        return self._shared_eval(batch, batch_idx, "train")
     
     def validation_step(self, batch, batch_idx):
-        return self._shared_eval("val")
+        return self._shared_eval(batch, batch_idx, "val")
     
     def _shared_eval(self, batch, batch_idx, prefix):
         inputs, labels = batch
