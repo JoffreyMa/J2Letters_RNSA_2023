@@ -13,7 +13,7 @@ class LitViT(li.LightningModule):
                  pool = 'cls', channels = 3, 
                  dim_head = 64, 
                  dropout = 0., emb_dropout = 0., 
-                 learning_rate=1e-2, t_max):
+                 learning_rate=1e-2, t_max=10000):
         super().__init__()
         self.vit = ViT(image_size=image_size, 
                        image_patch_size=image_patch_size, 

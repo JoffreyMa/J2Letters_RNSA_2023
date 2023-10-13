@@ -72,7 +72,9 @@ lit_vit = LitViT(
     neck_dim = 32,
     channels = 1,
     dropout = 0.1,
-    emb_dropout = 0.1
+    emb_dropout = 0.1, 
+    learning_rate=1e-2, 
+    t_max=10000
 )
 
 # log gradients, parameter histogram and model topology
