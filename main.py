@@ -26,7 +26,7 @@ OUTPUT_PATH = Path("/home/infres/jma-21/J2Letters_RNSA_2023/output")
 
 LABEL_COLS = ["bowel_healthy", "bowel_injury", "extravasation_healthy", "extravasation_injury", "kidney_healthy", "kidney_low", "kidney_high", "liver_healthy", "liver_low", "liver_high", "spleen_healthy", "spleen_low", "spleen_high", "any_injury"]
 FRAME_PATCH_SIZE = 8
-BATCH_SIZE = 2
+BATCH_SIZE = 32
 FRAMES = 512 # 303 is the max in the train data 
 
 wandb_logger = WandbLogger(project="RNSA_2023_ViT3D")
